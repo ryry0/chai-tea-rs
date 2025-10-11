@@ -2,6 +2,14 @@
 name = "chai-tea"
 version = "0.1.0"
 edition = "2024"
+authors = ["Ryan-David Reyes <ryan.david.reyes@gmail.com>"]
+description = "A minimal Elm-style architecture for egui/eframe apps."
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/ryan-david-reyes/chai-tea"
+keywords = ["elm", "egui", "eframe", "architecture", "tea"]
+categories = ["gui", "architecture", "framework"]
+
 
 [dependencies]
 eframe = "0.33.0"
