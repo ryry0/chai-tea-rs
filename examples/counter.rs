@@ -55,8 +55,9 @@ fn view(ctx: &egui::Context, model: &Model, tx: &mut Vec<Msg>) {
         ui.horizontal(|ui| {
             let mut label = model.label.clone();
             ui.label("Write something: ");
-            ui.text_edit_singleline(&mut label);
-            tx.push(Msg::NewLabel(label));
+            if ui.text_edit_singleline(&mut label).changed() {
+                tx.push(Msg::NewLabel(label));
+            }
         });
 
         ui.label(format!("label: {}, value: {}", model.label, model.counter));
