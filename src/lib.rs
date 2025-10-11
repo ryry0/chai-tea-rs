@@ -4,9 +4,9 @@
 //!
 //! # Example
 //! ```no_run
-//! use chai_tea::*;
 //! use eframe::egui;
 //!
+//! #[derive(Default)]
 //! struct Model { counter: i32 }
 //! enum Msg { Inc, Dec }
 //!

@@ -1,17 +1,15 @@
 # 🍵 chai-tea
 
-> a minimal Elm-style architecture for [egui](https://github.com/emilk/egui) / [eframe](https://github.com/emilk/egui/tree/master/crates/eframe) apps
+> a minimal Elm-style architecture for [egui](https://github.com/emilk/egui) / [eframe](https://github.com/emilk/egui/tree/main/crates/eframe) apps
 
 **Status:** experimental — minimal working example only.
 API may change rapidly as development continues.
 
 ---
 
-**chai-tea** lets you write GUI apps in the same clean loop you’d use in The Elm
-Architecture (TEA):
+**chai-tea** lets you write GUI apps in the same clean loop you’d use in The Elm Architecture (TEA):
 
 ```rust
-use chai_tea::*;
 use eframe::egui;
 
 #[derive(Default)]
@@ -40,22 +38,21 @@ fn main() -> eframe::Result<()> {
 }
 ```
 
-run it and you’ve got a fully working counter app.
+add eframe to your dependencies, run it and you’ve got a fully working counter app.
 
 `cargo run --example counter`
 
 ✨ features
 
 - pure Elm-style loop (Model → Msg → update → view)
-- no lifetimes, no borrowing hell — just ownership
-- automatic mem::take pattern for smooth updates
 - works on native and wasm targets (coming soon)
-- tiny, dependency-light, and easy to extend
+- tiny and dependency-light
 
-🫖 roadmap
+🫖 possible roadmap
 
 - [ ] async / background command support
 - [ ] fixed-timestep threaded simulation variant
 - [ ] wasm runner (chai_tea::run_web)
 - [ ] macro sugar: #[chai_app]
-- [ ] theme system (chai-theme someday?)
+- [ ] theme system (chai-latte someday?)
+- [ ] time travel debugger?

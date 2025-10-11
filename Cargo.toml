@@ -6,7 +6,7 @@ authors = ["Ryan-David Reyes <ryan.david.reyes@gmail.com>"]
 description = "A minimal Elm-style architecture for egui/eframe apps."
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/ryan-david-reyes/chai-tea"
+repository = "https://github.com/ryry0/chai-tea-rs"
 keywords = ["elm", "egui", "eframe", "architecture", "tea", "chai"]
 categories = ["gui", "architecture", "framework"]
 
