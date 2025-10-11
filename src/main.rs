@@ -1,22 +1,5 @@
 use eframe::egui;
 
-#[derive(Default)]
-struct App {
-    model: Model,
-    messages: Vec<Msg>,
-}
-
-impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        view(ctx, &self.model, &mut self.messages);
-        let msgs: Vec<_> = self.messages.drain(..).collect();
-        for msg in msgs {
-            let old = std::mem::take(&mut self.model);
-            self.model = update(old, msg);
-        }
-    }
-}
-
 struct Model {
     counter: i32,
     label: String,
@@ -29,8 +12,8 @@ enum Msg {
     NewLabel(String),
 }
 
-impl Model {
-    pub fn init() -> Self {
+impl Default for Model {
+    fn default() -> Self {
         Self {
             counter: 0,
             label: String::from(""),
@@ -38,10 +21,8 @@ impl Model {
     }
 }
 
-impl Default for Model {
-    fn default() -> Self {
-        Model::init()
-    }
+fn init() -> Model {
+    Model::default()
 }
 
 fn update(model: Model, msg: Msg) -> Model {
@@ -95,10 +76,5 @@ fn view(ctx: &egui::Context, model: &Model, tx: &mut Vec<Msg>) {
 }
 
 fn main() -> Result<(), eframe::Error> {
-    let options = eframe::NativeOptions::default();
-    eframe::run_native(
-        "egui Demo",
-        options,
-        Box::new(|_cc| Ok(Box::new(App::default()))),
-    )
+    chai_tea::run(init, update, view)
 }
