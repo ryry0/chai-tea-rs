@@ -1,3 +1,37 @@
+//! # 🍵 chai-tea
+//!
+//! A minimal Elm-style architecture for egui / eframe apps.
+//!
+//! # Example
+//! ```no_run
+//! use chai_tea::*;
+//! use eframe::egui;
+//!
+//! struct Model { counter: i32 }
+//! enum Msg { Inc, Dec }
+//!
+//! fn init() -> Model { Model { counter: 0 } }
+//!
+//! fn update(m: Model, msg: Msg) -> Model {
+//!     match msg {
+//!         Msg::Inc => Model { counter: m.counter + 1, ..m },
+//!         Msg::Dec => Model { counter: m.counter - 1, ..m },
+//!     }
+//! }
+//!
+//! fn view(ctx: &egui::Context, m: &Model, tx: &mut Vec<Msg>) {
+//!     egui::CentralPanel::default().show(ctx, |ui| {
+//!         if ui.button("+").clicked() { tx.push(Msg::Inc); }
+//!         if ui.button("–").clicked() { tx.push(Msg::Dec); }
+//!         ui.label(m.counter.to_string());
+//!     });
+//! }
+//!
+//! fn main() -> eframe::Result<()> {
+//!     chai_tea::run(init, update, view)
+//! }
+//! ```
+
 use eframe::egui;
 
 #[derive(Default)]
@@ -8,6 +42,9 @@ struct ChaiTeaApp<M, Msg, Fupdate, Fview> {
     view: Fview,
 }
 
+/// Run a chai-tea app with a model, update, and view function.
+///
+/// This is the minimal entry point. It wires up eframe and drives your Elm-style loop.
 pub fn run<M, Msg, Finit, Fupdate, Fview>(
     init: Finit,
     update: Fupdate,
