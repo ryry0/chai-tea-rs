@@ -15,8 +15,8 @@ enum Msg {
 impl Default for Model {
     fn default() -> Self {
         Self {
-            counter: 0,
-            label: String::from(""),
+            counter: 1,
+            label: String::from("hello world"),
         }
     }
 }
