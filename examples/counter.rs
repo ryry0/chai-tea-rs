@@ -77,5 +77,5 @@ fn view(ctx: &egui::Context, model: &Model, tx: &mut Vec<Msg>) {
 }
 
 fn main() -> Result<(), eframe::Error> {
-    chai_tea::run(init, update, view)
+    chai_tea::brew("chai_app", init, update, view)
 }
