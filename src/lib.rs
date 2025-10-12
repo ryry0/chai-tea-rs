@@ -138,6 +138,52 @@ struct ChaiTeaAppAsync<M, S, Cmd, Msg, Fupdate, Fview, Fcmd> {
     _phantom_cmd: std::marker::PhantomData<Cmd>,
 }
 
+/// An alias for [`run_async`]. 🍵
+///
+/// # Example
+/// ```no_run
+/// # use eframe::egui;
+/// # fn init() -> i32 { 1 }
+/// # fn sync_init() -> i32 { 1 }
+/// # fn update(m: i32, msg: i32) -> (i32, Option<i32>) { (1, None) }
+/// # fn view(ctx: &egui::Context, m: &i32, tx: &mut Vec<i32>) { }
+/// # fn run_cmd(cmd: i32, sync: &mut i32, tx: std::sync::mpsc::Sender<i32>) { }
+/// chai_tea::brew_async("chai_app", init, sync_init, update, view, run_cmd);
+/// ```
+///
+/// Equivalent to:
+/// ```no_run
+/// # use eframe::egui;
+/// # fn init() -> i32 { 1 }
+/// # fn sync_init() -> i32 { 1 }
+/// # fn update(m: i32, msg: i32) -> (i32, Option<i32>) { (1, None) }
+/// # fn view(ctx: &egui::Context, m: &i32, tx: &mut Vec<i32>) { }
+/// # fn run_cmd(cmd: i32, sync: &mut i32, tx: std::sync::mpsc::Sender<i32>) { }
+/// chai_tea::run_async("chai_app", init, sync_init, update, view, run_cmd);
+/// ```
+#[inline(always)]
+pub fn brew_async<M, S, Cmd, Msg, Finit, FsyncInit, Fupdate, Fview, Fcmd>(
+    title: &str,
+    init: Finit,
+    sync_init: FsyncInit,
+    update: Fupdate,
+    view: Fview,
+    run_cmd: Fcmd,
+) -> eframe::Result<()>
+where
+    M: Default + 'static,
+    S: 'static,
+    Cmd: 'static,
+    Finit: Fn() -> M + 'static,
+    FsyncInit: Fn() -> S + 'static,
+    Fupdate: Fn(M, Msg) -> (M, Option<Cmd>) + Copy + 'static,
+    Fview: Fn(&egui::Context, &M, &mut Vec<Msg>) + Copy + 'static,
+    Fcmd: Fn(Cmd, &mut S, std::sync::mpsc::Sender<Msg>) + Copy + Send + Sync + 'static,
+    Msg: 'static,
+{
+    run_async(title, init, sync_init, update, view, run_cmd)
+}
+
 /// Run an async chai-tea app with a model, update, and view and async run_cmd function.
 ///
 /// This is the minimal entry point. It wires up eframe and drives your Elm-style loop.
