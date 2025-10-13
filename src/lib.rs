@@ -128,7 +128,7 @@ where
 
 struct ChaiTeaAppAsync<M, S, Cmd, Msg, Fupdate, Fview, Fcmd> {
     model: M,
-    sync: S,
+    sync_state: S,
     messages: Vec<Msg>,
     update: Fupdate,
     view: Fview,
@@ -144,28 +144,28 @@ struct ChaiTeaAppAsync<M, S, Cmd, Msg, Fupdate, Fview, Fcmd> {
 /// ```no_run
 /// # use eframe::egui;
 /// # fn init() -> i32 { 1 }
-/// # fn sync_init() -> i32 { 1 }
+/// # fn sync_state_init() -> i32 { 1 }
 /// # fn update(m: i32, msg: i32) -> (i32, Option<i32>) { (1, None) }
 /// # fn view(ctx: &egui::Context, m: &i32, tx: &mut Vec<i32>) { }
 /// # fn run_cmd(cmd: i32, sync: &mut i32, tx: std::sync::mpsc::Sender<i32>) { }
-/// chai_tea::brew_async("chai_app", init, sync_init, update, view, run_cmd);
+/// chai_tea::brew_async("chai_app", init, sync_state_init, update, view, run_cmd);
 /// ```
 ///
 /// Equivalent to:
 /// ```no_run
 /// # use eframe::egui;
 /// # fn init() -> i32 { 1 }
-/// # fn sync_init() -> i32 { 1 }
+/// # fn sync_state_init() -> i32 { 1 }
 /// # fn update(m: i32, msg: i32) -> (i32, Option<i32>) { (1, None) }
 /// # fn view(ctx: &egui::Context, m: &i32, tx: &mut Vec<i32>) { }
 /// # fn run_cmd(cmd: i32, sync: &mut i32, tx: std::sync::mpsc::Sender<i32>) { }
-/// chai_tea::run_async("chai_app", init, sync_init, update, view, run_cmd);
+/// chai_tea::run_async("chai_app", init, sync_state_init, update, view, run_cmd);
 /// ```
 #[inline(always)]
 pub fn brew_async<M, S, Cmd, Msg, Finit, FsyncInit, Fupdate, Fview, Fcmd>(
     title: &str,
     init: Finit,
-    sync_init: FsyncInit,
+    sync_state_init: FsyncInit,
     update: Fupdate,
     view: Fview,
     run_cmd: Fcmd,
@@ -181,7 +181,7 @@ where
     Fcmd: Fn(Cmd, &mut S, std::sync::mpsc::Sender<Msg>) + Copy + Send + Sync + 'static,
     Msg: 'static,
 {
-    run_async(title, init, sync_init, update, view, run_cmd)
+    run_async(title, init, sync_state_init, update, view, run_cmd)
 }
 
 /// Run an async chai-tea app with a model, update, and view and async run_cmd function.
@@ -190,7 +190,7 @@ where
 pub fn run_async<M, S, Cmd, Msg, Finit, FsyncInit, Fupdate, Fview, Fcmd>(
     title: &str,
     init: Finit,
-    sync_init: FsyncInit,
+    sync_state_init: FsyncInit,
     update: Fupdate,
     view: Fview,
     run_cmd: Fcmd,
@@ -214,7 +214,7 @@ where
         Box::new(move |_cc| {
             Ok(Box::new(ChaiTeaAppAsync {
                 model: init(),
-                sync: sync_init(),
+                sync_state: sync_state_init(),
                 messages: Vec::new(),
                 update,
                 view,
@@ -261,7 +261,7 @@ where
 
         //run async cmds
         for cmd in cmds {
-            (self.run_cmd)(cmd, &mut self.sync, self.msg_tx.clone());
+            (self.run_cmd)(cmd, &mut self.sync_state, self.msg_tx.clone());
         }
     }
 }
