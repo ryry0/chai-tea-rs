@@ -1,6 +1,6 @@
 use eframe::egui;
-//use std::sync::atomic::AtomicBool;
-use std::sync::mpsc::Sender;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 struct Model {
     total_time: u64,
@@ -10,7 +10,6 @@ struct Model {
 }
 enum State {
     Running,
-    Paused,
     Stopped,
 }
 
@@ -19,7 +18,6 @@ enum Msg {
     Tick(u64),
     Start,
     Stop,
-    Pause,
 }
 
 impl Default for Model {
@@ -51,21 +49,13 @@ fn update(model: Model, msg: Msg) -> (Model, Option<Cmd>) {
             _ => (model, None),
         },
 
-        Msg::Pause => (
-            Model {
-                state: State::Paused,
-                ..model
-            },
-            None,
-        ),
-
         Msg::Stop => (
             Model {
                 time_elapsed: 0,
                 state: State::Stopped,
                 ..model
             },
-            None,
+            Some(Cmd::Stop),
         ),
 
         Msg::Start => (
@@ -75,6 +65,7 @@ fn update(model: Model, msg: Msg) -> (Model, Option<Cmd>) {
             },
             Some(Cmd::Start(model.total_time)),
         ),
+
         Msg::Tick(secs) => (
             Model {
                 time_elapsed: secs,
@@ -86,10 +77,6 @@ fn update(model: Model, msg: Msg) -> (Model, Option<Cmd>) {
 }
 
 fn view(ctx: &egui::Context, model: &Model, tx: &mut Vec<Msg>) {
-    if matches!(model.state, State::Running) {
-        ctx.request_repaint();
-    }
-
     egui::CentralPanel::default().show(ctx, |ui| {
         ui.heading("Chai Tea Timer");
         ui.horizontal(|ui| match model.state {
@@ -108,54 +95,42 @@ fn view(ctx: &egui::Context, model: &Model, tx: &mut Vec<Msg>) {
             }
         });
 
-        ui.horizontal(|ui| {
-            match model.state {
-                State::Running => {
-                    if ui.button("pause").clicked() {
-                        tx.push(Msg::Pause);
-                    }
-                }
-                _ => {
-                    if ui.button("start").clicked() {
-                        tx.push(Msg::Start);
-                    }
+        ui.horizontal(|ui| match model.state {
+            State::Running => {
+                if ui.button("stop").clicked() {
+                    tx.push(Msg::Stop);
                 }
             }
-
-            if ui.button("stop").clicked() {
-                tx.push(Msg::Stop);
+            _ => {
+                if ui.button("start").clicked() {
+                    tx.push(Msg::Start);
+                }
             }
-        });
-
-        ui.horizontal(|ui| {
-            let label = match model.state {
-                State::Paused => "Paused",
-                State::Running => "Running",
-                State::Stopped => "Stopped",
-            };
-            ui.label(label);
         });
     });
 }
 
 struct SyncState {
-    timer_lock: bool,
+    stop_flag: Arc<AtomicBool>,
 }
 
 enum Cmd {
     Start(u64),
     Stop,
-    Pause,
-    Reset,
 }
 
 fn sync_state_init() -> SyncState {
-    SyncState { timer_lock: false }
+    SyncState {
+        stop_flag: Arc::new(AtomicBool::new(false)),
+    }
 }
 
-fn run_cmd(cmd: Cmd, sync_state: &mut SyncState, tx: Sender<Msg>) {
+fn run_cmd(cmd: Cmd, sync_state: &mut SyncState, tx: chai_tea::ChaiSender<Msg>) {
     match cmd {
         Cmd::Start(total_time) => {
+            sync_state.stop_flag.store(false, Ordering::SeqCst);
+            let flag = sync_state.stop_flag.clone();
+
             std::thread::spawn(move || {
                 let start = std::time::Instant::now();
                 let mut tick = 0;
@@ -167,7 +142,10 @@ fn run_cmd(cmd: Cmd, sync_state: &mut SyncState, tx: Sender<Msg>) {
                     let now = std::time::Instant::now();
 
                     let remaining = next.saturating_duration_since(now);
-                    std::thread::sleep(remaining);
+
+                    if !interruptible_sleep(remaining, &flag) {
+                        break;
+                    }
 
                     if tx.send(Msg::Tick(tick)).is_err() {
                         return;
@@ -183,10 +161,20 @@ fn run_cmd(cmd: Cmd, sync_state: &mut SyncState, tx: Sender<Msg>) {
             });
         }
 
-        Cmd::Stop => (),
-        Cmd::Pause => (),
-        Cmd::Reset => (),
+        Cmd::Stop => sync_state.stop_flag.store(true, Ordering::SeqCst),
     }
+}
+
+fn interruptible_sleep(total: std::time::Duration, flag: &AtomicBool) -> bool {
+    let step = std::time::Duration::from_millis(10);
+    let start = std::time::Instant::now();
+    while std::time::Instant::now() - start < total {
+        if flag.load(Ordering::SeqCst) {
+            return false; // interrupted
+        }
+        std::thread::sleep(step);
+    }
+    true // completed
 }
 
 fn main() -> Result<(), eframe::Error> {
