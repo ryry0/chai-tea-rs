@@ -2,7 +2,7 @@
 
 > a minimal Elm-style architecture for [egui](https://github.com/emilk/egui) / [eframe](https://github.com/emilk/egui/tree/main/crates/eframe) apps
 
-**Status:** experimental — minimal working example only.
+**Status:** early-stage but functional — now with async / background task support.
 API may change rapidly as development continues.
 
 ---
@@ -34,7 +34,7 @@ fn view(ctx: &egui::Context, m: &Model, tx: &mut Vec<Msg>) {
 }
 
 fn main() -> eframe::Result<()> {
-    chai_tea::run(init, update, view)
+    chai_tea::brew(init, update, view)
 }
 ```
 
@@ -42,15 +42,28 @@ add eframe to your dependencies, run it and you’ve got a fully working counter
 
 `cargo run --example counter`
 
-✨ features
+## 🧩 example: async counters
 
-- pure Elm-style loop (Model → Msg → update → view)
-- works on native and wasm targets (coming soon)
-- tiny and dependency-light
+A minimal demonstration of concurrent background workers, shared atomic state, and repaint-on-message behavior is included under
 
-🫖 possible roadmap
+`cargo run --example multicounter`
 
-- [ ] async / background command support
+Each counter runs in its own thread and reports back through ChaiSender, automatically triggering redraws.
+
+## ✨ features
+
+- 🍃 Pure Elm-style loop — deterministic, functional, and testable
+- 🧵 Async commands via `brew_async`, `SyncState`, and `ChaiSender`
+    - spawn background threads or async tasks
+    - send messages back safely
+    - UI automatically repaints on message arrival
+- 🌐 Native + (soon) WASM support
+- 🪶 Tiny, dependency-light core
+- ☕ Ergonomic aliases — `brew` = `run`, `brew_async` = `run_async`
+
+## 🫖 possible roadmap
+
+- [x] async / background command support
 - [ ] fixed-timestep threaded simulation variant
 - [ ] wasm runner (chai_tea::run_web)
 - [ ] macro sugar: #[chai_app]
