@@ -231,5 +231,12 @@ fn interruptible_sleep(total: std::time::Duration, flag: &AtomicBool) -> bool {
 }
 
 fn main() -> Result<(), eframe::Error> {
-    chai_tea::brew_async("chai_timer", init, sync_state_init, update, view, run_cmd)
+    chai_tea::brew_async(
+        "chai_counters",
+        init,
+        sync_state_init,
+        update,
+        view,
+        run_cmd,
+    )
 }
