@@ -133,9 +133,47 @@ struct ChaiTeaAppAsync<M, S, Cmd, Msg, Fupdate, Fview, Fcmd> {
     update: Fupdate,
     view: Fview,
     run_cmd: Fcmd,
-    msg_tx: std::sync::mpsc::Sender<Msg>,
+    chai_tx: ChaiSender<Msg>,
     msg_rx: std::sync::mpsc::Receiver<Msg>,
     _phantom_cmd: std::marker::PhantomData<Cmd>,
+}
+
+pub struct ChaiSender<T> {
+    tx: std::sync::mpsc::Sender<T>,
+    ctx: Option<egui::Context>,
+}
+
+impl<T> ChaiSender<T> {
+    pub fn new(tx: std::sync::mpsc::Sender<T>) -> Self {
+        Self { tx, ctx: None }
+    }
+
+    pub fn set_ctx(&mut self, ctx: &egui::Context) {
+        self.ctx = Some(ctx.clone());
+    }
+
+    pub fn send(&self, msg: T) -> Result<(), std::sync::mpsc::SendError<T>> {
+        if let Some(ctx) = &self.ctx {
+            ctx.request_repaint();
+        }
+        self.tx.send(msg)
+    }
+}
+
+impl<T> std::ops::Deref for ChaiSender<T> {
+    type Target = std::sync::mpsc::Sender<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.tx
+    }
+}
+
+impl<T> Clone for ChaiSender<T> {
+    fn clone(&self) -> Self {
+        Self {
+            tx: self.tx.clone(),
+            ctx: self.ctx.clone(),
+        }
+    }
 }
 
 /// An alias for [`run_async`]. 🍵
@@ -147,7 +185,7 @@ struct ChaiTeaAppAsync<M, S, Cmd, Msg, Fupdate, Fview, Fcmd> {
 /// # fn sync_state_init() -> i32 { 1 }
 /// # fn update(m: i32, msg: i32) -> (i32, Option<i32>) { (1, None) }
 /// # fn view(ctx: &egui::Context, m: &i32, tx: &mut Vec<i32>) { }
-/// # fn run_cmd(cmd: i32, sync: &mut i32, tx: std::sync::mpsc::Sender<i32>) { }
+/// # fn run_cmd(cmd: i32, sync: &mut i32, tx: chai_tea::ChaiSender<i32>) { }
 /// chai_tea::brew_async("chai_app", init, sync_state_init, update, view, run_cmd);
 /// ```
 ///
@@ -158,7 +196,7 @@ struct ChaiTeaAppAsync<M, S, Cmd, Msg, Fupdate, Fview, Fcmd> {
 /// # fn sync_state_init() -> i32 { 1 }
 /// # fn update(m: i32, msg: i32) -> (i32, Option<i32>) { (1, None) }
 /// # fn view(ctx: &egui::Context, m: &i32, tx: &mut Vec<i32>) { }
-/// # fn run_cmd(cmd: i32, sync: &mut i32, tx: std::sync::mpsc::Sender<i32>) { }
+/// # fn run_cmd(cmd: i32, sync: &mut i32, tx: chai_tea::ChaiSender<i32>) { }
 /// chai_tea::run_async("chai_app", init, sync_state_init, update, view, run_cmd);
 /// ```
 #[inline(always)]
@@ -178,7 +216,7 @@ where
     FsyncInit: Fn() -> S + 'static,
     Fupdate: Fn(M, Msg) -> (M, Option<Cmd>) + Copy + 'static,
     Fview: Fn(&egui::Context, &M, &mut Vec<Msg>) + Copy + 'static,
-    Fcmd: Fn(Cmd, &mut S, std::sync::mpsc::Sender<Msg>) + Copy + Send + Sync + 'static,
+    Fcmd: Fn(Cmd, &mut S, ChaiSender<Msg>) + Copy + Send + Sync + 'static,
     Msg: 'static,
 {
     run_async(title, init, sync_state_init, update, view, run_cmd)
@@ -203,11 +241,14 @@ where
     FsyncInit: Fn() -> S + 'static,
     Fupdate: Fn(M, Msg) -> (M, Option<Cmd>) + Copy + 'static,
     Fview: Fn(&egui::Context, &M, &mut Vec<Msg>) + Copy + 'static,
-    Fcmd: Fn(Cmd, &mut S, std::sync::mpsc::Sender<Msg>) + Copy + Send + Sync + 'static,
+    Fcmd: Fn(Cmd, &mut S, ChaiSender<Msg>) + Copy + Send + Sync + 'static,
     Msg: 'static,
 {
     let options = eframe::NativeOptions::default();
     let (msg_tx, msg_rx) = std::sync::mpsc::channel();
+
+    let chai_tx = ChaiSender::new(msg_tx);
+
     eframe::run_native(
         title,
         options,
@@ -219,7 +260,7 @@ where
                 update,
                 view,
                 run_cmd,
-                msg_tx,
+                chai_tx,
                 msg_rx,
                 _phantom_cmd: std::marker::PhantomData,
             }))
@@ -236,9 +277,15 @@ where
     Msg: 'static,
     Fupdate: Fn(M, Msg) -> (M, Option<Cmd>) + Copy + 'static,
     Fview: Fn(&egui::Context, &M, &mut Vec<Msg>) + Copy + 'static,
-    Fcmd: Fn(Cmd, &mut S, std::sync::mpsc::Sender<Msg>) + Copy + Send + Sync + 'static,
+    Fcmd: Fn(Cmd, &mut S, ChaiSender<Msg>) + Copy + Send + Sync + 'static,
 {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        static ONCE: std::sync::Once = std::sync::Once::new();
+
+        ONCE.call_once(|| {
+            self.chai_tx.set_ctx(ctx);
+        });
+
         //get view messages
         (self.view)(ctx, &self.model, &mut self.messages);
         let mut msgs: Vec<_> = self.messages.drain(..).collect();
@@ -261,7 +308,8 @@ where
 
         //run async cmds
         for cmd in cmds {
-            (self.run_cmd)(cmd, &mut self.sync_state, self.msg_tx.clone());
+            let tx = ChaiSender::clone(&self.chai_tx);
+            (self.run_cmd)(cmd, &mut self.sync_state, tx);
         }
     }
 }
