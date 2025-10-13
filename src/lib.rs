@@ -109,6 +109,14 @@
 //! }
 //! ```
 //!
+//! ## 🌐 Async example
+//!
+//! Using tokio + reqwest + scraper, chai-tea cleanly handles real async I/O:
+//!
+//! `cargo run --example scraper`
+//!
+//! Fetches a live web page, parses HTML, and updates the UI — all while keeping a pure Elm-style architecture.
+//!
 //! [`brew_async`] uses [`ChaiSender`], which automatically triggers `ctx.request_repaint()`
 //! whenever a background thread sends a message.
 //!
@@ -131,12 +139,12 @@
 //! ## 🧩 About `SyncState`
 //!
 //! In The Elm Architecture, your `Model` is pure data: it changes only through `update()`.
-//!  
+//!
 //! But Rust threads (and async tasks) sometimes need shared, mutable state — atomics, mutexes, or channels —
-//! that live *outside* the pure update loop.  
-//!  
-//! **`SyncState`** is where you keep those thread-safe primitives.  
-//!  
+//! that live *outside* the pure update loop.
+//!
+//! **`SyncState`** is where you keep those thread-safe primitives.
+//!
 //! Think of it as the *imperative shadow* of your app — tools for concurrency that never leak into `Model`.
 //!
 //! ### ✦ Pattern
@@ -151,7 +159,7 @@
 //! ```
 //!
 //! The `SyncState` is initialized once via `sync_state_init()` and passed to every `run_cmd` call.
-//!  
+//!
 //! It’s the safe home for things like `Arc<AtomicBool>`, `Mutex<Vec<T>>`, or open sockets —
 //! anything that shouldn’t live in the `Model` itself.
 //!

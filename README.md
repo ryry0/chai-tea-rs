@@ -50,6 +50,15 @@ A minimal demonstration of concurrent background workers, shared atomic state, a
 
 Each counter runs in its own thread and reports back through ChaiSender, automatically triggering redraws.
 
+## 🌐 Async example
+
+Using tokio + reqwest + scraper, chai-tea cleanly handles real async I/O: 
+
+`cargo run --example scraper`
+
+Fetches a live web page, parses HTML, and updates the UI — all while keeping a pure Elm-style architecture.
+
+
 ## ✨ features
 
 - 🍃 Pure Elm-style loop — deterministic, functional, and testable
