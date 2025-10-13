@@ -1,8 +1,24 @@
 //! # 🍵 chai-tea
 //!
-//! A minimal Elm-style architecture for egui / eframe apps.
+//! > A minimal Elm-style architecture for [egui](https://github.com/emilk/egui) / [eframe](https://github.com/emilk/egui/tree/main/crates/eframe) apps
 //!
-//! # Example
+//! **Status:** early-stage but functional — now with async / background task support.
+//! APIs may evolve as the design stabilizes.
+//!
+//! ---
+//!
+//! ## ☯ Overview
+//!
+//! `chai-tea` lets you build GUI apps in the same clean, functional loop as The Elm Architecture (TEA):
+//!
+//! **Model → Msg → update → view**
+//!
+//! Your app stays deterministic, testable, and easy to reason about — but fully interactive and async-capable.
+//!
+//! ---
+//!
+//! ## 🍃 Minimal example
+//!
 //! ```no_run
 //! use eframe::egui;
 //!
@@ -28,9 +44,147 @@
 //! }
 //!
 //! fn main() -> eframe::Result<()> {
-//!     chai_tea::run("chai app", init, update, view)
+//!     chai_tea::brew("chai_app", init, update, view)
 //! }
 //! ```
+//!
+//! ---
+//!
+//! ## 🧵 Async example
+//!
+//! For background work, threads, or async I/O, use [`brew_async`]:
+//!
+//! ```no_run
+//! use std::sync::atomic::{AtomicBool, Ordering};
+//! use std::sync::Arc;
+//! use eframe::egui;
+//!
+//! #[derive(Default)]
+//! struct Model { tick: u64, running: bool }
+//! enum Msg { Start, Stop, Tick(u64) }
+//! enum Cmd { StartTimer, StopTimer }
+//!
+//! fn update(m: Model, msg: Msg) -> (Model, Option<Cmd>) {
+//!     match msg {
+//!         Msg::Start => (Model { running: true, ..m }, Some(Cmd::StartTimer)),
+//!         Msg::Stop  => (Model { running: false, ..m }, Some(Cmd::StopTimer)),
+//!         Msg::Tick(t) => (Model { tick: t, ..m }, None),
+//!     }
+//! }
+//!
+//! struct SyncState { stop_flag: Arc<AtomicBool> }
+//! fn sync_state_init() -> SyncState {
+//!     SyncState { stop_flag: Arc::new(AtomicBool::new(false)) }
+//! }
+//!
+//! fn run_cmd(cmd: Cmd, sync: &mut SyncState, tx: chai_tea::ChaiSender<Msg>) {
+//!     match cmd {
+//!         Cmd::StartTimer => {
+//!             sync.stop_flag.store(false, Ordering::SeqCst);
+//!             let flag = sync.stop_flag.clone();
+//!             std::thread::spawn(move || {
+//!                 let mut tick = 0;
+//!                 while !flag.load(Ordering::SeqCst) {
+//!                     std::thread::sleep(std::time::Duration::from_secs(1));
+//!                     tx.send(Msg::Tick(tick)).ok();
+//!                     tick += 1;
+//!                 }
+//!             });
+//!         }
+//!         Cmd::StopTimer => sync.stop_flag.store(true, Ordering::SeqCst),
+//!     }
+//! }
+//!
+//! fn view(ctx: &egui::Context, m: &Model, tx: &mut Vec<Msg>) {
+//!     egui::CentralPanel::default().show(ctx, |ui| {
+//!         ui.label(format!("tick {}", m.tick));
+//!         if m.running {
+//!             if ui.button("stop").clicked() { tx.push(Msg::Stop); }
+//!         } else if ui.button("start").clicked() { tx.push(Msg::Start); }
+//!     });
+//! }
+//!
+//! fn main() -> eframe::Result<()> {
+//!     chai_tea::brew_async("timer", || Model::default(), sync_state_init, update, view, run_cmd)
+//! }
+//! ```
+//!
+//! [`brew_async`] uses [`ChaiSender`], which automatically triggers `ctx.request_repaint()`
+//! whenever a background thread sends a message.
+//!
+//! ---
+//!
+//! ## 🪶 Design
+//!
+//! | Concept | Role |
+//! |---------|------|
+//! | `Model` | Your app state |
+//! | `Msg` | Events that mutate state |
+//! | `update` | Pure function `(Model, Msg) -> Model` *(or `(Model, Msg) -> (Model, Option<Cmd>)`)* |
+//! | `view` | Declarative egui renderer |
+//! | `Cmd` | Background / async command |
+//! | `SyncState` | Shared threading primitives (atomics, mutexes, etc.) |
+//! | `ChaiSender` | Message sender that auto-repaints UI |
+//!
+//! ---
+//!
+//! ## 🧩 About `SyncState`
+//!
+//! In The Elm Architecture, your `Model` is pure data: it changes only through `update()`.
+//!  
+//! But Rust threads (and async tasks) sometimes need shared, mutable state — atomics, mutexes, or channels —
+//! that live *outside* the pure update loop.  
+//!  
+//! **`SyncState`** is where you keep those thread-safe primitives.  
+//!  
+//! Think of it as the *imperative shadow* of your app — tools for concurrency that never leak into `Model`.
+//!
+//! ### ✦ Pattern
+//!
+//! ```text
+//! Model (pure state)
+//! └── update() ──> optional Cmd ─┐
+//!                                │
+//!                           run_cmd(Cmd, &mut SyncState, ChaiSender)
+//!                                │
+//!                         sends Msg back ─┘
+//! ```
+//!
+//! The `SyncState` is initialized once via `sync_state_init()` and passed to every `run_cmd` call.
+//!  
+//! It’s the safe home for things like `Arc<AtomicBool>`, `Mutex<Vec<T>>`, or open sockets —
+//! anything that shouldn’t live in the `Model` itself.
+//!
+//! Example:
+//!
+//! ```rust
+//! # use std::sync::atomic::AtomicBool;
+//! # use std::sync::{Arc, Mutex};
+//! struct SyncState {
+//!     stop_flag: Arc<AtomicBool>,
+//!     metrics: Arc<Mutex<Vec<f32>>>,
+//! }
+//!
+//! fn sync_state_init() -> SyncState {
+//!     SyncState {
+//!         stop_flag: Arc::new(AtomicBool::new(false)),
+//!         metrics: Arc::new(Mutex::new(Vec::new())),
+//!     }
+//! }
+//! ```
+//!
+//! This separation keeps your `update()` function pure, while allowing robust background activity.
+//!
+//! ---
+//!
+//! ## 📦 install
+//!
+//! ```bash
+//! cargo add chai-tea
+//! ```
+//!
+//! ---
+//!
 
 use eframe::egui;
 
@@ -138,6 +292,7 @@ struct ChaiTeaAppAsync<M, S, Cmd, Msg, Fupdate, Fview, Fcmd> {
     _phantom_cmd: std::marker::PhantomData<Cmd>,
 }
 
+/// A sender that automatically requests repaint on send.
 pub struct ChaiSender<T> {
     tx: std::sync::mpsc::Sender<T>,
     ctx: Option<egui::Context>,
@@ -152,6 +307,7 @@ impl<T> ChaiSender<T> {
         self.ctx = Some(ctx.clone());
     }
 
+    ///send `msg` and `request_repaint()`
     pub fn send(&self, msg: T) -> Result<(), std::sync::mpsc::SendError<T>> {
         if let Some(ctx) = &self.ctx {
             ctx.request_repaint();
@@ -159,6 +315,8 @@ impl<T> ChaiSender<T> {
         self.tx.send(msg)
     }
 
+    ///send `msg` but don't `request_repaint()`
+    #[inline(always)]
     pub fn send_repaintless(&self, msg: T) -> Result<(), std::sync::mpsc::SendError<T>> {
         self.tx.send(msg)
     }
@@ -226,7 +384,7 @@ where
     run_async(title, init, sync_state_init, update, view, run_cmd)
 }
 
-/// Run an async chai-tea app with a model, update, and view and async run_cmd function.
+/// Run an async chai-tea app with a model, update, view, SyncState and async run_cmd function.
 ///
 /// This is the minimal entry point. It wires up eframe and drives your Elm-style loop.
 pub fn run_async<M, S, Cmd, Msg, Finit, FsyncInit, Fupdate, Fview, Fcmd>(
