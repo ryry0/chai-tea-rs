@@ -1,6 +1,6 @@
 [package]
 name = "chai-tea"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 authors = ["Ryan-David Reyes <ryan.david.reyes@gmail.com>"]
 description = "A minimal Elm-style architecture for egui/eframe apps."
