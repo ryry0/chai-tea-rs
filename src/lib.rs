@@ -158,6 +158,10 @@ impl<T> ChaiSender<T> {
         }
         self.tx.send(msg)
     }
+
+    pub fn send_repaintless(&self, msg: T) -> Result<(), std::sync::mpsc::SendError<T>> {
+        self.tx.send(msg)
+    }
 }
 
 impl<T> std::ops::Deref for ChaiSender<T> {
