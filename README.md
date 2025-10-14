@@ -34,7 +34,7 @@ fn view(ctx: &egui::Context, m: &Model, tx: &mut Vec<Msg>) {
 }
 
 fn main() -> eframe::Result<()> {
-    chai_tea::brew(init, update, view)
+    chai_tea::brew("chai_app", init, update, view)
 }
 ```
 
