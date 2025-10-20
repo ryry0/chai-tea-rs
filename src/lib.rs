@@ -221,6 +221,26 @@ where
     Msg: 'static,
 {
     let options = eframe::NativeOptions::default();
+    run_with_opts(title, options, init, update, view)
+}
+
+/// Run a chai-tea app with a model, update, and view function, and allows sending options to eframe.
+///
+/// This is the minimal entry point. It wires up eframe and drives your Elm-style loop.
+pub fn run_with_opts<M, Msg, Finit, Fupdate, Fview>(
+    title: &str,
+    options: eframe::NativeOptions,
+    init: Finit,
+    update: Fupdate,
+    view: Fview,
+) -> eframe::Result<()>
+where
+    M: Default + 'static,
+    Finit: Fn() -> M + 'static,
+    Fupdate: Fn(M, Msg) -> M + Copy + 'static,
+    Fview: Fn(&egui::Context, &M, &mut Vec<Msg>) + Copy + 'static,
+    Msg: 'static,
+{
     eframe::run_native(
         title,
         options,
@@ -233,6 +253,25 @@ where
             }))
         }),
     )
+}
+
+/// An alias for [`run_with_opts`]. 🍵
+#[inline(always)]
+pub fn brew_with_opts<M, Msg, Finit, Fupdate, Fview>(
+    title: &str,
+    options: eframe::NativeOptions,
+    init: Finit,
+    update: Fupdate,
+    view: Fview,
+) -> eframe::Result<()>
+where
+    M: Default + 'static,
+    Msg: 'static,
+    Finit: Fn() -> M + 'static,
+    Fupdate: Fn(M, Msg) -> M + Copy + 'static,
+    Fview: Fn(&egui::Context, &M, &mut Vec<Msg>) + Copy + 'static,
+{
+    run_with_opts(title, options, init, update, view)
 }
 
 /// An alias for [`run`]. 🍵
