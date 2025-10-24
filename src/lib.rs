@@ -334,9 +334,9 @@ struct ChaiTeaAppAsync<M, S, Cmd, Msg, Fupdate, Fview, Fcmd> {
     update: Fupdate,
     view: Fview,
     run_cmd: Fcmd,
+    init_cmd: Vec<Cmd>,
     chai_tx: ChaiSender<Msg>,
     msg_rx: std::sync::mpsc::Receiver<Msg>,
-    _phantom_cmd: std::marker::PhantomData<Cmd>,
 }
 
 /// A sender that automatically requests repaint on send.
@@ -427,7 +427,7 @@ where
     M: Default + 'static,
     S: 'static,
     Cmd: 'static,
-    Finit: Fn() -> M + 'static,
+    Finit: Fn() -> (M, Vec<Cmd>) + 'static,
     FsyncInit: Fn() -> S + 'static,
     Fupdate: Fn(M, Msg) -> (M, Option<Cmd>) + Copy + 'static,
     Fview: Fn(&egui::Context, &M, &mut Vec<Msg>) + Copy + 'static,
@@ -452,7 +452,7 @@ where
     M: Default + 'static,
     S: 'static,
     Cmd: 'static,
-    Finit: Fn() -> M + 'static,
+    Finit: Fn() -> (M, Vec<Cmd>) + 'static,
     FsyncInit: Fn() -> S + 'static,
     Fupdate: Fn(M, Msg) -> (M, Option<Cmd>) + Copy + 'static,
     Fview: Fn(&egui::Context, &M, &mut Vec<Msg>) + Copy + 'static,
@@ -464,20 +464,22 @@ where
 
     let chai_tx = ChaiSender::new(msg_tx);
 
+    let (model, init_cmd) = init();
+
     eframe::run_native(
         title,
         options,
         Box::new(move |_cc| {
             Ok(Box::new(ChaiTeaAppAsync {
-                model: init(),
+                model,
                 sync_state: sync_state_init(),
                 messages: Vec::new(),
                 update,
                 view,
                 run_cmd,
+                init_cmd,
                 chai_tx,
                 msg_rx,
-                _phantom_cmd: std::marker::PhantomData,
             }))
         }),
     )
@@ -497,14 +499,16 @@ where
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         static ONCE: std::sync::Once = std::sync::Once::new();
 
+        let mut cmds = Vec::<Cmd>::new();
+
         ONCE.call_once(|| {
             self.chai_tx.set_ctx(ctx);
+            cmds = std::mem::take(&mut self.init_cmd);
         });
 
         //get view messages
         (self.view)(ctx, &self.model, &mut self.messages);
         let mut msgs: Vec<_> = self.messages.drain(..).collect();
-        let mut cmds = Vec::<Cmd>::new();
 
         //get async messages
         while let Ok(msg) = self.msg_rx.try_recv() {
