@@ -367,6 +367,12 @@ impl<T> ChaiSender<T> {
     pub fn send_repaintless(&self, msg: T) -> Result<(), std::sync::mpsc::SendError<T>> {
         self.tx.send(msg)
     }
+
+    pub fn with_ctx<F: FnOnce(&egui::Context)>(&self, f: F) {
+        if let Some(ctx) = &self.ctx {
+            f(ctx);
+        }
+    }
 }
 
 impl<T> std::ops::Deref for ChaiSender<T> {
