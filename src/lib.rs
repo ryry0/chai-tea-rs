@@ -429,7 +429,7 @@ where
     Cmd: 'static,
     Finit: Fn() -> (M, Vec<Cmd>) + 'static,
     FsyncInit: Fn() -> S + 'static,
-    Fupdate: Fn(M, Msg) -> (M, Option<Cmd>) + Copy + 'static,
+    Fupdate: Fn(M, Msg) -> (M, Vec<Cmd>) + Copy + 'static,
     Fview: Fn(&egui::Context, &M, &mut Vec<Msg>) + Copy + 'static,
     Fcmd: Fn(Cmd, &mut S, ChaiSender<Msg>) + Copy + Send + Sync + 'static,
     Msg: 'static,
@@ -454,7 +454,7 @@ where
     Cmd: 'static,
     Finit: Fn() -> (M, Vec<Cmd>) + 'static,
     FsyncInit: Fn() -> S + 'static,
-    Fupdate: Fn(M, Msg) -> (M, Option<Cmd>) + Copy + 'static,
+    Fupdate: Fn(M, Msg) -> (M, Vec<Cmd>) + Copy + 'static,
     Fview: Fn(&egui::Context, &M, &mut Vec<Msg>) + Copy + 'static,
     Fcmd: Fn(Cmd, &mut S, ChaiSender<Msg>) + Copy + Send + Sync + 'static,
     Msg: 'static,
@@ -492,7 +492,7 @@ where
     S: 'static,
     Cmd: 'static,
     Msg: 'static,
-    Fupdate: Fn(M, Msg) -> (M, Option<Cmd>) + Copy + 'static,
+    Fupdate: Fn(M, Msg) -> (M, Vec<Cmd>) + Copy + 'static,
     Fview: Fn(&egui::Context, &M, &mut Vec<Msg>) + Copy + 'static,
     Fcmd: Fn(Cmd, &mut S, ChaiSender<Msg>) + Copy + Send + Sync + 'static,
 {
@@ -518,11 +518,9 @@ where
         //handle them all
         for msg in msgs {
             let old = std::mem::take(&mut self.model);
-            let (new_model, cmd) = (self.update)(old, msg);
+            let (new_model, mut new_cmds) = (self.update)(old, msg);
             self.model = new_model;
-            if let Some(cmd) = cmd {
-                cmds.push(cmd);
-            }
+            cmds.append(&mut new_cmds);
         }
 
         //run async cmds
