@@ -74,7 +74,8 @@ Fetches a live web page, parses HTML, and updates the UI — all while keeping a
 
 - [x] async / background command support
 - [ ] fixed-timestep threaded simulation variant
-- [ ] wasm runner (chai_tea::run_web)
+- [ ] wasm runner (chai_tea::run_web) (in progress)
 - [ ] macro sugar: #[chai_app]
 - [ ] theme system (chai-latte someday?)
 - [ ] time travel debugger?
+- [ ] winit + wgpu + egui version (in progress)

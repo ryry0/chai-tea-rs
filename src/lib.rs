@@ -108,6 +108,7 @@
 //!     chai_tea::brew_async("timer", || Model::default(), sync_state_init, update, view, run_cmd)
 //! }
 //! ```
+//! The `tx` in run_cmd is already a cloned sender, so no need to re-clone it for use in a thread.
 //!
 //! ## 🌐 Async example
 //!
